@@ -1,4 +1,17 @@
-import { Pool } from "pg";
+import { Pool, types } from "pg";
+
+// pg auto-converts Postgres DATE columns into JS Date objects by default,
+// which silently breaks every place in this codebase that treats price_date
+// as a 'YYYY-MM-DD' string (sorting via localeCompare, .slice(5) for chart
+// labels, string comparisons like `dateA > dateB`). Force DATE (oid 1082)
+// to stay a raw string instead — this matches how dates are produced
+// everywhere else (e.g. parseAgmarknetDate in lib/agmarknet.ts).
+types.setTypeParser(1082, (val) => val);
+
+// Postgres internal NUMERIC oid (1700) — bonus safety net: NUMERIC sometimes
+// comes back as a string already, but pin it explicitly so prices never end
+// up as PG's NUMERIC-string wrapped object if a driver upgrade changes that.
+types.setTypeParser(1700, (val) => val);
 
 // Neon (and most serverless Postgres providers) require SSL.
 // A single pooled connection is reused across warm Vercel Function invocations.
